@@ -257,11 +257,12 @@
     <div class="container">
         <div class="instructions">
             <h3>Instructions:</h3>
-            <p>Move the orange square from the top into the outline formed by the L-shaped pieces at the bottom.</p>
+            <p>Move the orange square and L-pieces so the square is enclosed within the outline formed by the L-shapes.
+            </p>
             <ul>
                 <li>Click and drag puzzle pieces to move them</li>
-                <li>The four L-shaped pieces need to form a square outline</li>
-                <li>Navigate the orange square into the center of the outline</li>
+                <li>Position the four L-shaped pieces to form a square outline around the orange square</li>
+                <li>Possible winning positions are at columns 0-1, 1-2, or 2-3 in the bottom rows</li>
                 <li>Solve the puzzle in the fewest moves possible</li>
             </ul>
         </div>
@@ -302,17 +303,11 @@
         let timerInterval = null;
         let gameActive = false;
 
-        // Define occupied tiles for each piece type (5 pieces, no overlap)
         const pieceDefinitions = [
-            // Top-left L at (0,2): covers (0,2), (0,3), (1,2)
             { type: 'l-piece', shape: 'l-shape', width: 2, height: 2, startX: 0, startY: 2, color: '#3a7ca5', tiles: [[0, 0], [0, 1], [1, 0]] },
-            // Top-right L at (2,2): covers (2,2), (3,2), (2,3)
             { type: 'l-piece', shape: 'reversed-l', width: 2, height: 2, startX: 2, startY: 2, color: '#3a7ca5', tiles: [[0, 0], [1, 0], [0, 1]] },
-            // Bottom-left L at (0,4): covers (0,4), (0,5), (1,5)
             { type: 'l-piece', shape: 'vertical-l', width: 2, height: 2, startX: 0, startY: 4, color: '#3a7ca5', tiles: [[0, 0], [0, 1], [1, 1]] },
-            // Bottom-right L at (2,4): covers (2,4), (2,5), (3,5)
             { type: 'l-piece', shape: 'reversed-vertical-l', width: 2, height: 2, startX: 2, startY: 4, color: '#3a7ca5', tiles: [[0, 0], [0, 1], [1, 1]] },
-            // Target square at (1,0): covers (1,0), (1,1), (2,0), (2,1)
             { type: 'target-piece', shape: '', width: 2, height: 2, startX: 1, startY: 0, color: '#ff7f00', tiles: [[0, 0], [0, 1], [1, 0], [1, 1]] }
         ];
 
@@ -348,7 +343,7 @@
             piece.dataset.width = def.width;
             piece.dataset.height = def.height;
             piece.dataset.type = def.type;
-            piece.dataset.tiles = JSON.stringify(def.tiles); // Store tile offsets
+            piece.dataset.tiles = JSON.stringify(def.tiles);
 
             pieces.push(piece);
             document.getElementById('game-board').appendChild(piece);
@@ -371,6 +366,7 @@
 
             pieceStartX = parseFloat(selectedPiece.dataset.x);
             pieceStartY = parseFloat(selectedPiece.dataset.y);
+            console.log(`Start drag: Piece at (${pieceStartX}, ${pieceStartY})`);
 
             document.addEventListener('mousemove', dragPiece);
             document.addEventListener('touchmove', dragPiece, { passive: false });
@@ -396,14 +392,47 @@
             const deltaX = clientX - dragStartX;
             const deltaY = clientY - dragStartY;
 
-            let newX = pieceStartX + deltaX / TILE_SIZE;
-            let newY = pieceStartY + deltaY / TILE_SIZE;
+            const targetX = Math.round(pieceStartX + deltaX / TILE_SIZE);
+            const targetY = Math.round(pieceStartY + deltaY / TILE_SIZE);
+            console.log(`Dragging from (${pieceStartX}, ${pieceStartY}) to target (${targetX}, ${targetY})`);
 
-            const validPosition = validateMove(selectedPiece, newX, newY);
-            if (validPosition) {
-                selectedPiece.dataset.x = validPosition.x;
-                selectedPiece.dataset.y = validPosition.y;
-                selectedPiece.style.transform = `translate(${validPosition.x * TILE_SIZE}px, ${validPosition.y * TILE_SIZE}px)`;
+            let currentX = parseFloat(selectedPiece.dataset.x);
+            let currentY = parseFloat(selectedPiece.dataset.y);
+            let bestX = currentX;
+            let bestY = currentY;
+            let minDistance = Math.abs(targetX - currentX) + Math.abs(targetY - currentY);
+
+            // Try all directions to find the best valid move
+            const directions = [
+                [1, 0],  // Right
+                [-1, 0], // Left
+                [0, 1],  // Down
+                [0, -1]  // Up
+            ];
+
+            for (const [dx, dy] of directions) {
+                const newX = currentX + dx;
+                const newY = currentY + dy;
+                const validPosition = validateMove(selectedPiece, newX, newY);
+                if (validPosition) {
+                    const distance = Math.abs(targetX - newX) + Math.abs(targetY - newY);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        bestX = newX;
+                        bestY = newY;
+                    }
+                }
+            }
+
+            if (bestX !== currentX || bestY !== currentY) {
+                currentX = bestX;
+                currentY = bestY;
+                selectedPiece.dataset.x = currentX;
+                selectedPiece.dataset.y = currentY;
+                selectedPiece.style.transform = `translate(${currentX * TILE_SIZE}px, ${currentY * TILE_SIZE}px)`;
+                console.log(`Moved to best position (${currentX}, ${currentY})`);
+            } else {
+                console.log(`No valid move found towards (${targetX}, ${targetY})`);
             }
         }
 
@@ -430,20 +459,17 @@
             const height = parseFloat(piece.dataset.height);
             const tiles = JSON.parse(piece.dataset.tiles);
 
-            newX = Math.max(0, Math.min(GRID_COLS - width, newX));
-            newY = Math.max(0, Math.min(GRID_ROWS - height, newY));
-            newX = Math.round(newX);
-            newY = Math.round(newY);
-
-            // Calculate occupied tiles for this piece at new position
+            // Check bounds for each tile
             const occupiedTiles = tiles.map(([dx, dy]) => [newX + dx, newY + dy]);
-
-            // Check boundaries for each tile
             for (const [x, y] of occupiedTiles) {
-                if (x < 0 || x >= GRID_COLS || y < 0 || y >= GRID_ROWS) return null;
+                if (x < 0 || x >= GRID_COLS || y < 0 || y >= GRID_ROWS) {
+                    console.log(`Bounds check failed for (${newX}, ${newY}): Tile (${x}, ${y}) out of bounds`);
+                    return null;
+                }
             }
 
-            // Check collisions
+            console.log(`Validating move to (${newX}, ${newY}) with tiles:`, occupiedTiles);
+
             for (const otherPiece of pieces) {
                 if (otherPiece === piece) continue;
 
@@ -451,14 +477,19 @@
                 const otherY = parseFloat(otherPiece.dataset.y);
                 const otherTiles = JSON.parse(otherPiece.dataset.tiles);
                 const otherOccupiedTiles = otherTiles.map(([dx, dy]) => [otherX + dx, otherY + dy]);
+                console.log(`Checking against piece at (${otherX}, ${otherY}) with tiles:`, otherOccupiedTiles);
 
                 for (const [x1, y1] of occupiedTiles) {
                     for (const [x2, y2] of otherOccupiedTiles) {
-                        if (x1 === x2 && y1 === y2) return null;
+                        if (x1 === x2 && y1 === y2) {
+                            console.log(`Collision detected at (${x1}, ${y1}) with other piece at (${otherX}, ${otherY})`);
+                            return null;
+                        }
                     }
                 }
             }
 
+            console.log(`Move to (${newX}, ${newY}) is valid`);
             return { x: newX, y: newY };
         }
 
@@ -466,10 +497,44 @@
             if (!gameActive) return;
 
             const targetPiece = pieces.find(p => p.dataset.type === 'target-piece');
-            const x = parseFloat(targetPiece.dataset.x);
-            const y = parseFloat(targetPiece.dataset.y);
+            const squareX = parseFloat(targetPiece.dataset.x);
+            const squareY = parseFloat(targetPiece.dataset.y);
 
-            if (x === 1 && y === 3) { // Target zone at (1,3) to (2,4)
+            const lPieces = pieces.filter(p => p.dataset.type === 'l-piece');
+            const positions = lPieces.map(p => ({
+                x: parseFloat(p.dataset.x),
+                y: parseFloat(p.dataset.y),
+                tiles: JSON.parse(p.dataset.tiles)
+            }));
+
+            const requiredPositions = [
+                { x: squareX - 1, y: squareY + 1 }, // Top-left L
+                { x: squareX + 1, y: squareY + 1 }, // Top-right L
+                { x: squareX - 1, y: squareY },     // Bottom-left L
+                { x: squareX + 1, y: squareY }      // Bottom-right L
+            ];
+
+            let isEnclosed = true;
+            for (let i = 0; i < 4; i++) {
+                const reqPos = requiredPositions[i];
+                const piece = positions.find(p => p.x === reqPos.x && p.y === reqPos.y);
+                if (!piece) {
+                    isEnclosed = false;
+                    break;
+                }
+
+                const tiles = piece.tiles.map(([dx, dy]) => [piece.x + dx, piece.y + dy]);
+                const requiredTiles = i === 0 ? [[-1, 1], [-1, 2], [0, 1]] : // Top-left
+                    i === 1 ? [[1, 1], [2, 1], [1, 2]] : // Top-right
+                        i === 2 ? [[-1, 0], [-1, 1], [0, 1]] : // Bottom-left
+                            [[1, 0], [1, 1], [2, 1]]; // Bottom-right
+                if (!tiles.every(([x, y], idx) => x === squareX + requiredTiles[idx][0] && y === squareY + requiredTiles[idx][1])) {
+                    isEnclosed = false;
+                    break;
+                }
+            }
+
+            if (isEnclosed) {
                 gameActive = false;
                 clearInterval(timerInterval);
 
@@ -525,7 +590,7 @@
         }
 
         function showHint() {
-            showMessage('Slide the L-pieces to form the outline and clear a path', 3000);
+            showMessage('Position the L-pieces to enclose the square in the bottom rows', 3000);
             const targetZone = document.querySelector('.target-zone');
             targetZone.style.backgroundColor = 'rgba(255, 215, 0, 0.4)';
             setTimeout(() => targetZone.style.backgroundColor = 'rgba(255, 215, 0, 0.15)', 1000);
