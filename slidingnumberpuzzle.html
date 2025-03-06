@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Number Sorting Game | Survivor Puzzles</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #ff7f00;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s;
+            z-index: 100;
+            text-decoration: none;
+        }
+
+        .back-button:hover {
+            background-color: #e67200;
+        }
+
+        .back-button::before {
+            content: "←";
+            margin-right: 8px;
+            font-size: 18px;
+        }
+
+        h1 {
+            color: #ffd700;
+            margin-top: 60px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .grid {
+            margin: 20px;
+            display: inline-block;
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            border: 2px solid #ffd700;
+        }
+
+        .row {
+            display: flex;
+            margin: 5px 0;
+        }
+
+        .tile {
+            width: 40px;
+            height: 40px;
+            margin: 2px;
+            background-color: #004b87;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .tile:hover {
+            background-color: #003a6b;
+        }
+
+        .tile.disabled {
+            background-color: #333;
+            cursor: not-allowed;
+        }
+
+        .tile.selected {
+            background-color: #ff7f00;
+        }
+
+        .controls {
+            margin: 20px;
+            text-align: center;
+        }
+
+        select,
+        button {
+            padding: 8px 15px;
+            margin: 5px;
+            font-size: 16px;
+            background-color: #004b87;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        select {
+            background-color: #333;
+        }
+
+        button:hover {
+            background-color: #ff7f00;
+        }
+
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+
+        #preview {
+            margin: 10px;
+            color: #ffd700;
+        }
+
+        #message {
+            margin: 10px;
+            font-weight: bold;
+            color: #ffd700;
+            min-height: 24px;
+        }
+
+        .instructions {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px;
+            max-width: 600px;
+            border-left: 3px solid #ffd700;
+        }
+
+        .instructions h3 {
+            color: #ffd700;
+            margin-top: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" class="back-button">Back to Hub</a>
+
+    <h1>Number Sorting Challenge</h1>
+
+    <div class="instructions">
+        <h3>Instructions:</h3>
+        <p>Sort the numbers into ascending order (1-15) with each row following the correct sequence.
+            You can move tiles in two ways:</p>
+        <ul>
+            <li><strong>Rotate a row:</strong> Select the same row for both source and target to move the left-most
+                number to the end of the row.</li>
+            <li><strong>Swap between rows:</strong> Select different source and target rows to exchange the left-most
+                numbers between the rows.</li>
+        </ul>
+        <p>Tip: You can click directly on the leftmost number of each row to select it.</p>
+        <p>Arrange the grid to match:</p>
+        <p>Row 0: 1, 2, 3, 4, 5<br>
+            Row 1: 6, 7, 8, 9, 10<br>
+            Row 2: 11, 12, 13, 14, 15</p>
+    </div>
+
+    <div id="grid" class="grid"></div>
+    <div class="controls">
+        <div>
+            Source row:
+            <select id="sourceRow">
+                <option value="-1">Select source</option>
+                <option value="0">Row 0</option>
+                <option value="1">Row 1</option>
+                <option value="2">Row 2</option>
+            </select>
+        </div>
+        <div>
+            Target row:
+            <select id="targetRow">
+                <option value="-1">Select target</option>
+                <option value="0">Row 0</option>
+                <option value="1">Row 1</option>
+                <option value="2">Row 2</option>
+            </select>
+        </div>
+        <button id="confirmButton" disabled>Confirm Move</button>
+        <button onclick="restartGame()">Restart</button>
+    </div>
+    <div id="preview"></div>
+    <div id="message"></div>
+
+    <script>
+        let grid = [];
+        let selectedSource = -1;
+        let selectedTarget = -1;
+        const target = [
+            [1, 2, 3, 4, 5],
+            [6, 7, 8, 9, 10],
+            [11, 12, 13, 14, 15]
+        ];
+
+        function initializeGame() {
+            let numbers = Array.from({ length: 15 }, (_, i) => i + 1);
+            for (let i = numbers.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+            }
+
+            grid = [
+                numbers.slice(0, 5),
+                numbers.slice(5, 10),
+                numbers.slice(10, 15)
+            ];
+            selectedSource = -1;
+            selectedTarget = -1;
+            document.getElementById('sourceRow').value = -1;
+            document.getElementById('targetRow').value = -1;
+            document.getElementById('confirmButton').disabled = true;
+            renderGrid();
+            updatePreview();
+        }
+
+        function renderGrid() {
+            const gridDiv = document.getElementById('grid');
+            gridDiv.innerHTML = '';
+
+            grid.forEach((row, rowIndex) => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'row';
+
+                row.forEach((num, colIndex) => {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.textContent = num;
+
+                    // Add click handlers only to the leftmost tiles
+                    if (colIndex === 0) {
+                        tile.onclick = function () {
+                            handleTileClick(rowIndex);
+                        };
+
+                        if (rowIndex === selectedSource) {
+                            tile.className += ' selected';
+                        }
+                    } else {
+                        tile.className += ' disabled';
+                    }
+
+                    rowDiv.appendChild(tile);
+                });
+                gridDiv.appendChild(rowDiv);
+            });
+
+            checkWin();
+        }
+
+        function handleTileClick(rowIndex) {
+            if (selectedSource === -1) {
+                // First selection: set the source
+                selectedSource = rowIndex;
+                document.getElementById('sourceRow').value = rowIndex;
+            } else {
+                // Second selection: set the target and execute move
+                selectedTarget = rowIndex;
+                document.getElementById('targetRow').value = rowIndex;
+                moveTile();
+                return;
+            }
+
+            renderGrid();
+            updatePreview();
+        }
+
+        function updatePreview() {
+            const previewDiv = document.getElementById('preview');
+            const confirmButton = document.getElementById('confirmButton');
+            previewDiv.textContent = '';
+            confirmButton.disabled = true;
+
+            if (selectedSource === -1 || selectedTarget === -1) {
+                return;
+            }
+
+            const sourceNum = grid[selectedSource][0];
+            if (selectedSource === selectedTarget) {
+                previewDiv.textContent = `Will rotate row ${selectedSource}: ${sourceNum} moves to end`;
+            } else {
+                const targetNum = grid[selectedTarget][0];
+                previewDiv.textContent = `Will move ${sourceNum} from row ${selectedSource} to row ${selectedTarget}, and ${targetNum} from row ${selectedTarget} to row ${selectedSource}`;
+            }
+            confirmButton.disabled = false;
+        }
+
+        function moveTile() {
+            if (selectedSource === -1 || selectedTarget === -1) {
+                showMessage('Invalid selection!');
+                return;
+            }
+
+            if (selectedSource === selectedTarget) {
+                // Rotate within the same row
+                const num = grid[selectedSource].shift();
+                grid[selectedSource].push(num);
+                showMessage(`Rotated row ${selectedSource}: ${num} moved to end`);
+            } else {
+                // Swap leftmost tiles between rows
+                const sourceNum = grid[selectedSource].shift();
+                const targetNum = grid[selectedTarget].shift();
+                grid[selectedTarget].push(sourceNum);
+                grid[selectedSource].push(targetNum);
+                showMessage(`Moved ${sourceNum} to row ${selectedTarget}, and ${targetNum} to row ${selectedSource}`);
+            }
+
+            selectedSource = -1;
+            selectedTarget = -1;
+            document.getElementById('sourceRow').value = -1;
+            document.getElementById('targetRow').value = -1;
+            renderGrid();
+            updatePreview();
+        }
+
+        function checkWin() {
+            const isWon = grid.every((row, i) =>
+                row.every((num, j) => num === target[i][j])
+            );
+            if (isWon) {
+                showMessage('Congratulations! You won the immunity challenge!');
+                document.getElementById('confirmButton').disabled = true;
+            }
+        }
+
+        function showMessage(text) {
+            document.getElementById('message').textContent = text;
+            setTimeout(() => {
+                document.getElementById('message').textContent = '';
+            }, 3000);
+        }
+
+        function restartGame() {
+            initializeGame();
+            showMessage('Challenge restarted!');
+        }
+
+        // Event listeners for dropdowns
+        document.getElementById('sourceRow').addEventListener('change', (e) => {
+            selectedSource = parseInt(e.target.value);
+            renderGrid();
+            updatePreview();
+        });
+
+        document.getElementById('targetRow').addEventListener('change', (e) => {
+            selectedTarget = parseInt(e.target.value);
+            updatePreview();
+        });
+
+        document.getElementById('confirmButton').addEventListener('click', moveTile);
+
+        // Start the game
+        initializeGame();
+    </script>
+</body>
+
+</html>

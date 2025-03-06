@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Klotski Puzzle | Survivor Puzzles</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Trebuchet MS', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #ff7f00;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.2s;
+            z-index: 100;
+            text-decoration: none;
+        }
+
+        .back-button:hover {
+            background-color: #e67200;
+        }
+
+        .back-button::before {
+            content: "←";
+            margin-right: 8px;
+            font-size: 18px;
+        }
+
+        h1 {
+            color: #ffd700;
+            margin-top: 60px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            max-width: 800px;
+        }
+
+        .instructions {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            max-width: 600px;
+            border-left: 3px solid #ffd700;
+        }
+
+        .instructions h3 {
+            color: #ffd700;
+            margin-top: 0;
+        }
+
+        .game-board {
+            position: relative;
+            width: 320px;
+            height: 480px;
+            background-color: #333;
+            border: 4px solid #8b4513;
+            border-radius: 8px;
+            margin: 20px 0;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .puzzle-piece {
+            position: absolute;
+            background-color: #004b87;
+            border-radius: 5px;
+            box-sizing: border-box;
+            transition: transform 0.2s ease;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .puzzle-piece:hover {
+            filter: brightness(1.1);
+        }
+
+        .puzzle-piece:active {
+            cursor: grabbing;
+        }
+
+        .target-piece {
+            background-color: #ff7f00;
+        }
+
+        .target-zone {
+            position: absolute;
+            bottom: 80px;
+            left: 80px;
+            width: 160px;
+            /* 2x2 target area */
+            height: 160px;
+            background-color: rgba(255, 215, 0, 0.15);
+            border: 2px dashed #ffd700;
+            border-radius: 5px;
+            box-sizing: border-box;
+            z-index: -1;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: #004b87;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #ff7f00;
+        }
+
+        .moves-counter {
+            margin-top: 15px;
+            font-size: 18px;
+            color: #ffd700;
+        }
+
+        .timer {
+            font-size: 24px;
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+
+        #message {
+            margin: 15px 0;
+            font-weight: bold;
+            color: #ffd700;
+            min-height: 24px;
+            text-align: center;
+        }
+
+        .victory-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+
+        .victory-screen.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .victory-content {
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #ffd700;
+            max-width: 80%;
+        }
+
+        .victory-title {
+            font-size: 36px;
+            color: #ffd700;
+            margin-bottom: 20px;
+        }
+
+        .victory-stats {
+            font-size: 20px;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .l-shape {
+            clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 50%, 50% 100%, 0 100%);
+        }
+
+        .reversed-l {
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 100%, 50% 50%, 0 50%);
+        }
+
+        .vertical-l {
+            clip-path: polygon(0 0, 50% 0, 50% 50%, 100% 50%, 100% 100%, 0 100%);
+        }
+
+        .reversed-vertical-l {
+            clip-path: polygon(50% 0, 100% 0, 100% 100%, 0 100%, 0 50%, 50% 50%);
+        }
+
+        @media (max-width: 600px) {
+            .game-board {
+                width: 280px;
+                height: 420px;
+            }
+
+            .target-zone {
+                bottom: 70px;
+                left: 70px;
+                width: 140px;
+                height: 140px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="index.html" class="back-button">Back to Hub</a>
+    <h1>Klotski Puzzle</h1>
+    <div class="container">
+        <div class="instructions">
+            <h3>Instructions:</h3>
+            <p>Move the orange square from the top into the outline formed by the L-shaped pieces at the bottom.</p>
+            <ul>
+                <li>Click and drag puzzle pieces to move them</li>
+                <li>The four L-shaped pieces need to form a square outline</li>
+                <li>Navigate the orange square into the center of the outline</li>
+                <li>Solve the puzzle in the fewest moves possible</li>
+            </ul>
+        </div>
+        <div class="timer" id="timer">Time: 0:00</div>
+        <div class="moves-counter" id="movesCounter">Moves: 0</div>
+        <div class="game-board" id="game-board">
+            <div class="target-zone"></div>
+        </div>
+        <div id="message"></div>
+        <div class="controls">
+            <button id="resetButton">Reset Puzzle</button>
+            <button id="hintButton">Show Hint</button>
+        </div>
+    </div>
+    <div class="victory-screen" id="victoryScreen">
+        <div class="victory-content">
+            <div class="victory-title">Puzzle Solved!</div>
+            <div class="victory-stats" id="victoryStats">
+                You solved the puzzle in <span id="finalMoves">0</span> moves and <span id="finalTime">0:00</span>!
+            </div>
+            <button id="playAgainButton">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const TILE_SIZE = 80;
+        const GRID_COLS = 4;
+        const GRID_ROWS = 6;
+
+        let pieces = [];
+        let selectedPiece = null;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let pieceStartX = 0;
+        let pieceStartY = 0;
+        let moveCount = 0;
+        let startTime = 0;
+        let timerInterval = null;
+        let gameActive = false;
+
+        // Define occupied tiles for each piece type (5 pieces, no overlap)
+        const pieceDefinitions = [
+            // Top-left L at (0,2): covers (0,2), (0,3), (1,2)
+            { type: 'l-piece', shape: 'l-shape', width: 2, height: 2, startX: 0, startY: 2, color: '#3a7ca5', tiles: [[0, 0], [0, 1], [1, 0]] },
+            // Top-right L at (2,2): covers (2,2), (3,2), (2,3)
+            { type: 'l-piece', shape: 'reversed-l', width: 2, height: 2, startX: 2, startY: 2, color: '#3a7ca5', tiles: [[0, 0], [1, 0], [0, 1]] },
+            // Bottom-left L at (0,4): covers (0,4), (0,5), (1,5)
+            { type: 'l-piece', shape: 'vertical-l', width: 2, height: 2, startX: 0, startY: 4, color: '#3a7ca5', tiles: [[0, 0], [0, 1], [1, 1]] },
+            // Bottom-right L at (2,4): covers (2,4), (2,5), (3,5)
+            { type: 'l-piece', shape: 'reversed-vertical-l', width: 2, height: 2, startX: 2, startY: 4, color: '#3a7ca5', tiles: [[0, 0], [0, 1], [1, 1]] },
+            // Target square at (1,0): covers (1,0), (1,1), (2,0), (2,1)
+            { type: 'target-piece', shape: '', width: 2, height: 2, startX: 1, startY: 0, color: '#ff7f00', tiles: [[0, 0], [0, 1], [1, 0], [1, 1]] }
+        ];
+
+        function initGame() {
+            const gameBoard = document.getElementById('game-board');
+            gameBoard.innerHTML = '<div class="target-zone"></div>';
+            pieces = [];
+            moveCount = 0;
+            updateMoveCounter();
+
+            pieceDefinitions.forEach((def, index) => createPiece(def, index));
+
+            startTime = Date.now();
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+            gameActive = true;
+            showMessage('');
+        }
+
+        function createPiece(def, index) {
+            const piece = document.createElement('div');
+            piece.className = `puzzle-piece ${def.shape}`;
+            if (def.type === 'target-piece') piece.classList.add('target-piece');
+
+            piece.style.width = `${def.width * TILE_SIZE}px`;
+            piece.style.height = `${def.height * TILE_SIZE}px`;
+            piece.style.transform = `translate(${def.startX * TILE_SIZE}px, ${def.startY * TILE_SIZE}px)`;
+            piece.style.backgroundColor = def.color;
+
+            piece.dataset.index = index;
+            piece.dataset.x = def.startX;
+            piece.dataset.y = def.startY;
+            piece.dataset.width = def.width;
+            piece.dataset.height = def.height;
+            piece.dataset.type = def.type;
+            piece.dataset.tiles = JSON.stringify(def.tiles); // Store tile offsets
+
+            pieces.push(piece);
+            document.getElementById('game-board').appendChild(piece);
+
+            piece.addEventListener('mousedown', startDrag);
+            piece.addEventListener('touchstart', startDrag, { passive: false });
+        }
+
+        function startDrag(e) {
+            e.preventDefault();
+            selectedPiece = this;
+
+            if (e.type === 'mousedown') {
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+            } else {
+                dragStartX = e.touches[0].clientX;
+                dragStartY = e.touches[0].clientY;
+            }
+
+            pieceStartX = parseFloat(selectedPiece.dataset.x);
+            pieceStartY = parseFloat(selectedPiece.dataset.y);
+
+            document.addEventListener('mousemove', dragPiece);
+            document.addEventListener('touchmove', dragPiece, { passive: false });
+            document.addEventListener('mouseup', releasePiece);
+            document.addEventListener('touchend', releasePiece);
+
+            selectedPiece.style.zIndex = "10";
+        }
+
+        function dragPiece(e) {
+            if (!selectedPiece) return;
+            e.preventDefault();
+
+            let clientX, clientY;
+            if (e.type === 'mousemove') {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            } else {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+
+            const deltaX = clientX - dragStartX;
+            const deltaY = clientY - dragStartY;
+
+            let newX = pieceStartX + deltaX / TILE_SIZE;
+            let newY = pieceStartY + deltaY / TILE_SIZE;
+
+            const validPosition = validateMove(selectedPiece, newX, newY);
+            if (validPosition) {
+                selectedPiece.dataset.x = validPosition.x;
+                selectedPiece.dataset.y = validPosition.y;
+                selectedPiece.style.transform = `translate(${validPosition.x * TILE_SIZE}px, ${validPosition.y * TILE_SIZE}px)`;
+            }
+        }
+
+        function releasePiece() {
+            if (!selectedPiece) return;
+            selectedPiece.style.zIndex = "1";
+
+            if (pieceStartX !== parseFloat(selectedPiece.dataset.x) ||
+                pieceStartY !== parseFloat(selectedPiece.dataset.y)) {
+                moveCount++;
+                updateMoveCounter();
+                checkForWin();
+            }
+
+            selectedPiece = null;
+            document.removeEventListener('mousemove', dragPiece);
+            document.removeEventListener('touchmove', dragPiece);
+            document.removeEventListener('mouseup', releasePiece);
+            document.removeEventListener('touchend', releasePiece);
+        }
+
+        function validateMove(piece, newX, newY) {
+            const width = parseFloat(piece.dataset.width);
+            const height = parseFloat(piece.dataset.height);
+            const tiles = JSON.parse(piece.dataset.tiles);
+
+            newX = Math.max(0, Math.min(GRID_COLS - width, newX));
+            newY = Math.max(0, Math.min(GRID_ROWS - height, newY));
+            newX = Math.round(newX);
+            newY = Math.round(newY);
+
+            // Calculate occupied tiles for this piece at new position
+            const occupiedTiles = tiles.map(([dx, dy]) => [newX + dx, newY + dy]);
+
+            // Check boundaries for each tile
+            for (const [x, y] of occupiedTiles) {
+                if (x < 0 || x >= GRID_COLS || y < 0 || y >= GRID_ROWS) return null;
+            }
+
+            // Check collisions
+            for (const otherPiece of pieces) {
+                if (otherPiece === piece) continue;
+
+                const otherX = parseFloat(otherPiece.dataset.x);
+                const otherY = parseFloat(otherPiece.dataset.y);
+                const otherTiles = JSON.parse(otherPiece.dataset.tiles);
+                const otherOccupiedTiles = otherTiles.map(([dx, dy]) => [otherX + dx, otherY + dy]);
+
+                for (const [x1, y1] of occupiedTiles) {
+                    for (const [x2, y2] of otherOccupiedTiles) {
+                        if (x1 === x2 && y1 === y2) return null;
+                    }
+                }
+            }
+
+            return { x: newX, y: newY };
+        }
+
+        function checkForWin() {
+            if (!gameActive) return;
+
+            const targetPiece = pieces.find(p => p.dataset.type === 'target-piece');
+            const x = parseFloat(targetPiece.dataset.x);
+            const y = parseFloat(targetPiece.dataset.y);
+
+            if (x === 1 && y === 3) { // Target zone at (1,3) to (2,4)
+                gameActive = false;
+                clearInterval(timerInterval);
+
+                const totalTime = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(totalTime / 60);
+                const seconds = totalTime % 60;
+                const timeString = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+                document.getElementById('finalMoves').textContent = moveCount;
+                document.getElementById('finalTime').textContent = timeString;
+
+                setTimeout(() => {
+                    document.getElementById('victoryScreen').classList.add('active');
+                }, 500);
+            }
+        }
+
+        function updateMoveCounter() {
+            document.getElementById('movesCounter').textContent = `Moves: ${moveCount}`;
+        }
+
+        function updateTimer() {
+            if (!gameActive) return;
+            const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            document.getElementById('timer').textContent =
+                `Time: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
+        function showMessage(text, duration = 3000) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            if (text && duration > 0) {
+                setTimeout(() => messageEl.textContent = '', duration);
+            }
+        }
+
+        function resetPuzzle() {
+            pieces.forEach((piece, index) => {
+                const def = pieceDefinitions[index];
+                piece.dataset.x = def.startX;
+                piece.dataset.y = def.startY;
+                piece.style.transform = `translate(${def.startX * TILE_SIZE}px, ${def.startY * TILE_SIZE}px)`;
+            });
+            moveCount = 0;
+            updateMoveCounter();
+            startTime = Date.now();
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+            gameActive = true;
+            document.getElementById('victoryScreen').classList.remove('active');
+        }
+
+        function showHint() {
+            showMessage('Slide the L-pieces to form the outline and clear a path', 3000);
+            const targetZone = document.querySelector('.target-zone');
+            targetZone.style.backgroundColor = 'rgba(255, 215, 0, 0.4)';
+            setTimeout(() => targetZone.style.backgroundColor = 'rgba(255, 215, 0, 0.15)', 1000);
+        }
+
+        document.getElementById('resetButton').addEventListener('click', resetPuzzle);
+        document.getElementById('hintButton').addEventListener('click', showHint);
+        document.getElementById('playAgainButton').addEventListener('click', resetPuzzle);
+
+        document.addEventListener('DOMContentLoaded', initGame);
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(initGame, 1);
+        }
+    </script>
+</body>
+
+</html>
